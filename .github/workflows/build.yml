@@ -34,6 +34,9 @@ jobs:
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
+      - name: Install cargo-ndk (needed by PetLib)
+        run: cargo install cargo-ndk --locked
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
