@@ -119,7 +119,7 @@ fun AgreementDocumentDialog(
                             modifier = Modifier
                                 .padding(horizontal = 4.dp)
                                 .weight(1f),
-                            text = document.title
+                            text = document.title.vertexify()
                         )
 
                         TextButton(
@@ -152,7 +152,7 @@ fun AgreementDocumentDialog(
                                 .padding(all = 12.dp),
                             content = operation.content.ifEmpty {
                                 stringResource(R.string.agreement_content_unavailable)
-                            }
+                            }.vertexify()
                         )
                     }
                     is DocumentOperation.Failed -> {

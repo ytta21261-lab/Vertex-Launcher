@@ -27,6 +27,7 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -64,7 +66,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -94,13 +101,183 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Nama peluncur yang ditampilkan di layar Welcome */
 private const val VERTEX_LAUNCHER_NAME = "Vertex Launcher"
 
+/**
+ * Mengganti semua penyebutan nama lama ("Zalith Launcher 2", "ZalithLauncher2",
+ * "Zalith Launcher", dst.) menjadi "Vertex Launcher" (tanpa angka 2).
+ * Dipakai untuk semua teks di layar Welcome, termasuk dokumen perjanjian.
+ */
+internal fun String.vertexify(): String = this
+    .replace(Regex("Zalith\\s*Launcher\\s*2", RegexOption.IGNORE_CASE), VERTEX_LAUNCHER_NAME)
+    .replace(Regex("Zalith\\s*Launcher", RegexOption.IGNORE_CASE), VERTEX_LAUNCHER_NAME)
+
+/** Skema warna hitam-ungu khusus layar Welcome */
+@Composable
+private fun VertexWelcomeTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Color(0xFFA77BFF),
+            onPrimary = Color(0xFF1A0B3A),
+            primaryContainer = Color(0xFF0B0813),
+            onPrimaryContainer = Color(0xFFEDE4FF),
+            secondary = Color(0xFF8E5CF7),
+            onSecondary = Color(0xFFFFFFFF),
+            tertiary = Color(0xFF6D3BE0),
+            onTertiary = Color(0xFFFFFFFF),
+            background = Color(0xFF1B1626),
+            onBackground = Color(0xFFEFE9FA),
+            surface = Color(0xFF211B2E),
+            onSurface = Color(0xFFEFE9FA),
+            surfaceVariant = Color(0xFF2C2440),
+            onSurfaceVariant = Color(0xFFD3C8EA),
+            outline = Color(0xFF7A6E92)
+        ),
+        typography = MaterialTheme.typography,
+        shapes = MaterialTheme.shapes,
+        content = content
+    )
+}
+
+private class TwinkleStar(val x: Float, val y: Float, val size: Float, val phase: Float, val speed: Float)
+
+private class ShootingStar(
+    val startX: Float,
+    val startY: Float,
+    val length: Float,
+    val phase: Float,
+    val angle: Float
+)
+
+/**
+ * Latar abu-abu kehitaman (tidak terlalu gelap) dengan bintang berkelip
+ * dan bintang jatuh yang melintas secara berkala.
+ */
+@Composable
+private fun Modifier.welcomeBackground(): Modifier {
+    val transition = rememberInfiniteTransition(label = "WelcomeSky")
+    val time = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 16000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "WelcomeSkyTime"
+    )
+    val twinkles = remember {
+        val random = Random(7)
+        List(36) {
+            TwinkleStar(
+                x = random.nextFloat(),
+                y = random.nextFloat(),
+                size = 0.6f + random.nextFloat() * 1.4f,
+                phase = random.nextFloat(),
+                speed = (1 + random.nextInt(3)).toFloat()
+            )
+        }
+    }
+    val streaks = remember {
+        val random = Random(21)
+        List(6) { index ->
+            ShootingStar(
+                startX = 0.35f + random.nextFloat() * 0.65f,
+                startY = -0.05f + random.nextFloat() * 0.45f,
+                length = 0.16f + random.nextFloat() * 0.12f,
+                phase = (index + random.nextFloat() * 0.6f) / 6f,
+                angle = 28f + random.nextFloat() * 14f
+            )
+        }
+    }
+
+    return this
+        .background(
+            Brush.verticalGradient(
+                colors = listOf(Color(0xFF241E32), Color(0xFF17131F))
+            )
+        )
+        .drawBehind {
+            val t = time.value
+            val twoPi = 2f * PI.toFloat()
+
+            // Bintang kecil yang berkelip
+            twinkles.forEach { star ->
+                val wave = (sin((t * star.speed + star.phase) * twoPi) + 1f) / 2f
+                drawCircle(
+                    color = Color(0xFFD9C8FF).copy(alpha = 0.12f + 0.5f * wave),
+                    radius = star.size.dp.toPx() * 0.6f,
+                    center = Offset(size.width * star.x, size.height * star.y)
+                )
+            }
+
+            // Bintang jatuh (miring dari kanan atas ke kiri bawah)
+            val window = 0.22f
+            streaks.forEach { star ->
+                val p = (t + star.phase) % 1f
+                if (p < window) {
+                    val q = p / window
+                    val rad = star.angle * PI.toFloat() / 180f
+                    val dirX = -cos(rad)
+                    val dirY = sin(rad)
+                    val travel = size.width * 0.55f
+                    val head = Offset(
+                        x = size.width * star.startX + dirX * travel * q,
+                        y = size.height * star.startY + dirY * travel * q
+                    )
+                    val tailLength = size.width * star.length
+                    val tail = Offset(head.x - dirX * tailLength, head.y - dirY * tailLength)
+                    val fade = sin(q * PI.toFloat())
+
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color(0xFFC9A8FF).copy(alpha = 0.9f * fade)
+                            ),
+                            start = tail,
+                            end = head
+                        ),
+                        start = tail,
+                        end = head,
+                        strokeWidth = 2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                    drawCircle(
+                        color = Color.White.copy(alpha = fade),
+                        radius = 1.6.dp.toPx(),
+                        center = head
+                    )
+                }
+            }
+        }
+}
+
 @Composable
 fun WelcomeScreen(
+    onFinished: () -> Unit,
+    availableAgreement: StateFlow<AvailableAgreement?>,
+    screenViewModel: SplashBackStackViewModel,
+    modifier: Modifier = Modifier
+) {
+    VertexWelcomeTheme {
+        WelcomeScreenContent(
+            onFinished = onFinished,
+            availableAgreement = availableAgreement,
+            screenViewModel = screenViewModel,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun WelcomeScreenContent(
     onFinished: () -> Unit,
     availableAgreement: StateFlow<AvailableAgreement?>,
     screenViewModel: SplashBackStackViewModel,
@@ -122,7 +299,7 @@ fun WelcomeScreen(
         }
 
         ScreenTypeLayout(
-            modifier = modifier.background(MaterialTheme.colorScheme.background),
+            modifier = modifier.welcomeBackground(),
             contentAlignment = Alignment.Center
         ) { screenType ->
             when (screenType) {
@@ -295,13 +472,35 @@ private fun WelcomeTerminal(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 22.dp else 36.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        border = BorderStroke(
+            width = 1.dp,
+            brush = Brush.linearGradient(
+                colors = listOf(Color(0xFF8B5CF6), Color(0x338B5CF6), Color(0xFF6D3BE0))
+            )
+        )
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val titleWidth = (maxWidth - contentPadding * 2).coerceAtLeast(0.dp)
             val titleFontSize = with(LocalDensity.current) {
                 (titleWidth.toPx() / 6f).toSp().value
             }.coerceIn(12f, if (compact) 30f else 56f).sp
+
+            // Kilau ungu diagonal seperti pada logo (hitam di tengah, ungu di sudut)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0x663B1B8F),
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color(0x554A1FD0)
+                            )
+                        )
+                    )
+            )
 
             Box(
                 modifier = Modifier
@@ -313,7 +512,7 @@ private fun WelcomeTerminal(
                     .size(if (compact) 80.dp else 156.dp)
                     .rotate(18f)
                     .background(
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.38f),
                         shape = RoundedCornerShape(if (compact) 24.dp else 44.dp)
                     )
             )
@@ -326,7 +525,7 @@ private fun WelcomeTerminal(
                     )
                     .size(if (compact) 64.dp else 116.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f),
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f),
                         shape = CircleShape
                     )
             )
@@ -360,6 +559,7 @@ private fun WelcomeTerminal(
                 ) {
                     Text(
                         text = welcomeText,
+                        color = Color(0xFFB88CFF),
                         style = MaterialTheme.typography.displayLarge,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Black,
@@ -390,7 +590,7 @@ private fun WelcomeTerminal(
                         offsetX = 0.dp,
                         offsetY = if (compact) 0.dp else 48.dp
                     ),
-                    text = stringResource(R.string.welcome_screen_subtitle),
+                    text = stringResource(R.string.welcome_screen_subtitle).vertexify(),
                     style = if (compact) {
                         MaterialTheme.typography.bodySmall
                     } else {
@@ -709,13 +909,13 @@ private fun WelcomeIntroduction(
                     verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.welcome_screen_intro_primary, VERTEX_LAUNCHER_NAME),
+                        text = stringResource(R.string.welcome_screen_intro_primary, VERTEX_LAUNCHER_NAME).vertexify(),
                         lineHeight = if (compact) 20.sp else 26.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = stringResource(R.string.welcome_screen_intro_core),
+                        text = stringResource(R.string.welcome_screen_intro_core).vertexify(),
                         lineHeight = if (compact) 20.sp else 26.sp,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
                     )
@@ -729,7 +929,7 @@ private fun WelcomeIntroduction(
                         verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
                     ) {
                         Text(
-                            text = stringResource(R.string.welcome_screen_agreement_title),
+                            text = stringResource(R.string.welcome_screen_agreement_title).vertexify(),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -739,7 +939,7 @@ private fun WelcomeIntroduction(
                             InfoLayoutTextItem(
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = { selectedDocument = document },
-                                title = document.title,
+                                title = document.title.vertexify(),
                             )
                         }
                     }
@@ -754,7 +954,7 @@ private fun WelcomeIntroduction(
                         )
 
                         Text(
-                            text = stringResource(R.string.welcome_screen_agreement_confirmation),
+                            text = stringResource(R.string.welcome_screen_agreement_confirmation).vertexify(),
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
@@ -783,6 +983,6 @@ private fun StartButton(
         enabled = canStart && !started,
         onClick = onStart
     ) {
-        Text(text = stringResource(R.string.welcome_screen_start))
+        Text(text = stringResource(R.string.welcome_screen_start).vertexify())
     }
 }
