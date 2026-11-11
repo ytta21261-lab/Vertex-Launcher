@@ -18,6 +18,9 @@
 
 package com.movtery.zalithlauncher.ui.screens.main
 
+import com.movtery.zalithlauncher.ui.theme.VtxTheme
+import com.movtery.zalithlauncher.ui.theme.VtxRailButton
+import com.movtery.zalithlauncher.ui.theme.vtxSky
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -134,6 +137,25 @@ fun MainScreen(
     modifyVersionViewModel: ModifyVersionViewModel,
     submitError: (ErrorViewModel.ThrowableMessage) -> Unit
 ) {
+    VtxTheme {
+        MainScreenContent(
+            screenBackStackModel = screenBackStackModel,
+            eventViewModel = eventViewModel,
+            modpackImportViewModel = modpackImportViewModel,
+            modifyVersionViewModel = modifyVersionViewModel,
+            submitError = submitError
+        )
+    }
+}
+
+@Composable
+private fun MainScreenContent(
+    screenBackStackModel: ScreenBackStackViewModel,
+    eventViewModel: EventViewModel,
+    modpackImportViewModel: ModpackImportViewModel,
+    modifyVersionViewModel: ModifyVersionViewModel,
+    submitError: (ErrorViewModel.ThrowableMessage) -> Unit
+) {
     //监控当前是否有任务正在进行
     var taskRunning by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
@@ -165,14 +187,78 @@ fun MainScreen(
         backgroundColor().copy(alpha = launcherBackgroundOpacity)
     } else backgroundColor()
 
+    val openFileManagerAction: () -> Unit = {
+        eventViewModel.sendEvent(
+            EventViewModel.Event.OpenFileManager(
+                rootPath = PathManager.DIR_FILES_EXTERNAL.absolutePath
+            )
+        )
+    }
+    val toSettingsAction: () -> Unit = {
+        screenBackStackModel.mainScreen.removeAndNavigateTo(
+            removes = screenBackStackModel.clearBeforeNavKeys,
+            screenKey = screenBackStackModel.settingsScreen
+        )
+    }
+    val toDownloadAction: () -> Unit = {
+        screenBackStackModel.navigateToDownload()
+    }
+    val toMultiplayerAction: () -> Unit = {
+        screenBackStackModel.mainScreen.removeAndNavigateTo(
+            removes = screenBackStackModel.clearBeforeNavKeys,
+            screenKey = NormalNavKey.Multiplayer
+        )
+    }
+    val inMultiplayer = mainScreenKey is NormalNavKey.Multiplayer
+    val inDownload = mainScreenKey is NestedNavKey.Download
+    val inSettings = mainScreenKey is NestedNavKey.Settings
+
     Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = backgroundColor,
+        modifier = Modifier
+            .fillMaxSize()
+            .then(if (isBackgroundValid) Modifier else Modifier.vtxSky()),
+        color = if (isBackgroundValid) backgroundColor else Color.Transparent,
         contentColor = onBackgroundColor()
     ) {
+        Row(modifier = Modifier.fillMaxSize()) {
+        // Rel ikon di sisi kiri (folder, multiplayer, download, pengaturan)
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxHeight()
+                .padding(start = 12.dp, end = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            VtxRailButton(
+                selected = false,
+                painter = painterResource(R.drawable.ic_folder_filled),
+                contentDescription = null,
+                onClick = openFileManagerAction
+            )
+            VtxRailButton(
+                selected = inMultiplayer,
+                painter = painterResource(R.drawable.ic_group_filled),
+                contentDescription = stringResource(R.string.terracotta),
+                onClick = { if (!inMultiplayer) toMultiplayerAction() }
+            )
+            VtxRailButton(
+                selected = inDownload,
+                painter = painterResource(R.drawable.ic_download_2_filled),
+                contentDescription = stringResource(R.string.generic_download),
+                onClick = { if (!inDownload) toDownloadAction() }
+            )
+            VtxRailButton(
+                selected = inSettings,
+                painter = painterResource(R.drawable.ic_settings_filled),
+                contentDescription = stringResource(R.string.generic_setting),
+                onClick = { if (!inSettings) toSettingsAction() }
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
         ) {
             TopBar(
                 modifier = Modifier
@@ -242,6 +328,7 @@ fun MainScreen(
                     changeTasksExpandedState()
                 }
             }
+        }
         }
     }
 }
@@ -343,7 +430,7 @@ private fun <E: TitledNavKey> TopBar(
                 if (parent == null) {
                     if (festivals.isEmpty()) {
                         Text(
-                            text = BuildKeys.LAUNCHER_IDENTIFIER,
+                            text = BuildKeys.LAUNCHER_NAME,
                             style = style,
                             softWrap = softWarp,
                             maxLines = maxLines
@@ -383,7 +470,7 @@ private fun <E: TitledNavKey> TopBar(
             ) {
                 AnimatedVisibility(
                     visible = !(isTasksExpanded || taskRunning),
-                    enter = slideInVertically(
+           enter = slideInVertically(
                         initialOffsetY = { -50 }
                     ) + fadeIn(),
                     exit = slideOutVertically(
@@ -407,42 +494,6 @@ private fun <E: TitledNavKey> TopBar(
                         )
                     }
                 }
-
-                IconButton(
-                    onClick = openFileManager
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_folder_filled),
-                        contentDescription = null
-                    )
-                }
-
-                TopBarRailItem(
-                    selected = inMultiplayerScreen,
-                    painter = painterResource(R.drawable.ic_group_filled),
-                    text = stringResource(R.string.terracotta),
-                    onClick = {
-                        if (!inMultiplayerScreen) toMultiplayerScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inDownloadScreen,
-                    painter = painterResource(R.drawable.ic_download_2_filled),
-                    text = stringResource(R.string.generic_download),
-                    onClick = {
-                        if (!inDownloadScreen) toDownloadScreen()
-                    },
-                )
-
-                TopBarRailItem(
-                    selected = inSettingsScreen,
-                    painter = painterResource(R.drawable.ic_settings_filled),
-                    text = stringResource(R.string.generic_setting),
-                    onClick = {
-                        if (!inSettingsScreen) toSettingsScreen()
-                    },
-                )
             }
         }
     }
