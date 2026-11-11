@@ -31,7 +31,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,12 +38,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -62,21 +62,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.movtery.zalithlauncher.R
 import com.movtery.zalithlauncher.components.InstallableItem
 import com.movtery.zalithlauncher.ui.base.BaseScreen
 import com.movtery.zalithlauncher.ui.components.AnimatedDirection
-import com.movtery.zalithlauncher.ui.components.MarqueeText
 import com.movtery.zalithlauncher.ui.components.ScalingActionButton
 import com.movtery.zalithlauncher.ui.components.animated
 import com.movtery.zalithlauncher.ui.components.rememberAnimatedContext
@@ -89,11 +92,12 @@ import kotlin.random.Random
 
 // ---------- Palet warna Vertex (hitam & ungu) ----------
 private val VertexViolet = Color(0xFFA77BFF)
-private val VertexVioletDeep = Color(0xFF7C3AED)
 private val VertexMint = Color(0xFF6EF3C5)
 private val VertexRose = Color(0xFFFF6B8B)
-private val VertexTextMain = Color(0xFFEFE9FA)
-private val VertexTextSoft = Color(0xFFD3C8EA)
+private val VertexTitle = Color(0xFFF3ECFF)
+private val VertexTitleAccent = Color(0xFFB07CFF)
+private val VertexTextSoft = Color(0xFFB9AECF)
+private val VertexTextDim = Color(0xFFA99FC0)
 
 @Composable
 fun UnpackScreen(
@@ -114,24 +118,24 @@ fun UnpackScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(all = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    UnpackTaskList(
+                    InfoPanel(
                         modifier = Modifier
-                            .weight(7f)
-                            .fillMaxHeight(),
-                        isVisible = isVisible,
-                        items = items,
-                    )
-
-                    ActionMenu(
-                        modifier = Modifier
-                            .weight(3f)
+                            .weight(4f)
                             .fillMaxHeight(),
                         isVisible = isVisible,
                         items = items,
                         onAgreeClick = onAgreeClick
+                    )
+
+                    UnpackTaskGrid(
+                        modifier = Modifier
+                            .weight(6f)
+                            .fillMaxHeight(),
+                        isVisible = isVisible,
+                        items = items
                     )
                 }
             }
@@ -139,8 +143,9 @@ fun UnpackScreen(
     }
 }
 
+/** Panel kiri: label, judul besar, keterangan, dan tombol pasang */
 @Composable
-private fun ActionMenu(
+private fun InfoPanel(
     isVisible: Boolean,
     items: List<InstallableItem>,
     modifier: Modifier = Modifier,
@@ -151,26 +156,53 @@ private fun ActionMenu(
     }
     val installing = states.any { it == InstallableItem.State.RUNNING }
     val hasFailed = states.any { it == InstallableItem.State.FAILED }
-    val finishedCount = states.count { it == InstallableItem.State.FINISHED }
+    val buttonEnabled = !installing && states.any {
+        it == InstallableItem.State.NOT_STARTED ||
+        it == InstallableItem.State.PENDING ||
+        it == InstallableItem.State.FAILED
+    }
     val ctx = rememberAnimatedContext(isVisible = isVisible)
 
+    // Judul mengikuti bahasa sistem: Indonesia atau Inggris
+    val language = LocalConfiguration.current.locales[0]?.language
+    val isIndonesian = language == "in" || language == "id"
+    val label = if (isIndonesian) "KOMPONEN" else "COMPONENTS"
+    val titleFirst = if (isIndonesian) "Pasang" else "Install"
+    val titleSecond = if (isIndonesian) "komponen." else "components."
+
     Column(
-        modifier = modifier.animated(ctx, from = AnimatedDirection.Right),
+        modifier = modifier.animated(ctx),
     ) {
         Column(
             modifier = Modifier
                 .verticalScroll(state = rememberScrollState())
                 .weight(1f)
         ) {
-            // Penghitung progres bergaya terminal
             Text(
-                text = "[ $finishedCount / ${items.size} ]",
-                style = MaterialTheme.typography.labelLarge,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 4.sp,
                 color = VertexViolet
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = titleFirst,
+                fontSize = 32.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.5).sp,
+                color = VertexTitle
+            )
+            Text(
+                text = titleSecond,
+                fontSize = 32.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.5).sp,
+                color = VertexTitleAccent
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 modifier = Modifier.fillMaxWidth(),
                 text = if (installing) {
@@ -183,75 +215,82 @@ private fun ActionMenu(
             )
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Tombol gradien ungu dengan sudut terpotong
+        val buttonBrush = if (buttonEnabled) {
+            Brush.horizontalGradient(listOf(Color(0xFF8B3DFF), Color(0xFFB58CFF)))
+        } else {
+            Brush.horizontalGradient(listOf(Color(0xFF2A2338), Color(0xFF332B45)))
+        }
+        val buttonShape = CutCornerShape(topEnd = 18.dp, bottomStart = 18.dp)
         ScalingActionButton(
-            enabled = !installing && states.any {
-                it == InstallableItem.State.NOT_STARTED ||
-                it == InstallableItem.State.PENDING ||
-                it == InstallableItem.State.FAILED
-            },
+            enabled = buttonEnabled,
             modifier = Modifier.fillMaxWidth(),
-            shape = CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp),
+            shape = buttonShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = VertexVioletDeep,
-                contentColor = Color.White,
-                disabledContainerColor = Color(0xFF2A2338),
+                containerColor = Color.Transparent,
+                contentColor = Color(0xFF0B0813),
+                disabledContainerColor = Color.Transparent,
                 disabledContentColor = Color(0xFF8C82A3)
             ),
-            border = BorderStroke(
-                width = 1.dp,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFFC4A1FF), Color(0xFF6D3BE0))
-                )
-            ),
+            elevation = null,
+            contentPadding = PaddingValues(0.dp),
             onClick = onAgreeClick
         ) {
-            MarqueeText(
-                text = stringResource(
-                    if (hasFailed) R.string.generic_retry else R.string.splash_screen_agree
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(buttonBrush, buttonShape)
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(
+                        if (hasFailed) R.string.generic_retry else R.string.splash_screen_agree
+                    ).uppercase(),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp,
+                    maxLines = 1,
+                    color = if (buttonEnabled) Color(0xFF0B0813) else Color(0xFF8C82A3)
                 )
-            )
+            }
         }
     }
 }
 
+/** Panel kanan: kartu komponen dalam dua kolom */
 @Composable
-private fun UnpackTaskList(
+private fun UnpackTaskGrid(
     isVisible: Boolean,
     items: List<InstallableItem>,
     modifier: Modifier = Modifier,
 ) {
     val ctx = rememberAnimatedContext(isVisible = isVisible)
+    val gridState = rememberLazyGridState()
+    val indicator = gridState.scrollIndicatorState
 
-    // Panel semi-transparan dengan sudut terpotong ala antarmuka futuristik
-    Surface(
-        modifier = modifier.animated(ctx),
-        shape = CutCornerShape(topStart = 28.dp, bottomEnd = 28.dp),
-        color = Color(0xFF0B0813).copy(alpha = 0.55f),
-        contentColor = VertexTextMain,
-        border = BorderStroke(
-            width = 1.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(Color(0xCC8B5CF6), Color(0x228B5CF6), Color(0xCC6D3BE0))
-            )
-        )
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        state = gridState,
+        modifier = modifier
+            .animated(ctx, from = AnimatedDirection.Right)
+            .then(
+                if (indicator != null) {
+                    Modifier.nonInteractiveScrollbar(
+                        state = indicator,
+                        orientation = Orientation.Vertical,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        contentPadding = PaddingValues(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        val scrollState = rememberLazyListState()
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .nonInteractiveScrollbar(
-                    state = scrollState.scrollIndicatorState!!,
-                    orientation = Orientation.Vertical,
-                ),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            state = scrollState,
-        ) {
-            items(items) { item ->
-                TaskItem(
-                    item = item,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-            }
+        items(items) { item ->
+            TaskItem(item = item)
         }
     }
 }
@@ -272,101 +311,106 @@ private fun TaskItem(
     }
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         shape = CutCornerShape(topEnd = 14.dp, bottomStart = 14.dp),
-        color = Color(0xFF8B5CF6).copy(alpha = 0.12f), // semi-transparan
-        contentColor = VertexTextMain,
+        color = Color(0xFF110D1C).copy(alpha = 0.78f), // semi-transparan
+        contentColor = VertexTitle,
         border = BorderStroke(
             width = 1.dp,
-            brush = Brush.horizontalGradient(
-                colors = listOf(accent.copy(alpha = 0.65f), Color(0xFF8B5CF6).copy(alpha = 0.12f))
+            brush = Brush.linearGradient(
+                colors = listOf(accent.copy(alpha = 0.7f), Color(0xFF6D3BE0).copy(alpha = 0.18f))
             )
         )
     ) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            // Garis aksen vertikal di sisi kiri
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .fillMaxHeight()
-                    .background(accent)
-            )
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp)
-                    .animateContentSize(animationSpec = getAnimateTween())
+        Column(
+            modifier = Modifier
+                .heightIn(min = 70.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .animateContentSize(animationSpec = getAnimateTween())
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold
+                // Berlian kecil sebagai penanda
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .rotate(45f)
+                        .background(accent)
                 )
-                item.summary?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VertexTextSoft.copy(alpha = 0.8f)
-                    )
-                }
-                if (state == InstallableItem.State.RUNNING || state == InstallableItem.State.FAILED) {
-                    message?.let { taskMessage ->
-                        Text(
-                            text = taskMessage,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = accent,
-                            maxLines = 1
+
+                val iconModifier = Modifier.size(16.dp)
+                when (state) {
+                    InstallableItem.State.NOT_STARTED -> {
+                        Icon(
+                            modifier = iconModifier,
+                            painter = painterResource(R.drawable.ic_folder_zip_outlined),
+                            contentDescription = null,
+                            tint = accent
                         )
                     }
+                    InstallableItem.State.PENDING -> {
+                        Icon(
+                            modifier = iconModifier,
+                            painter = painterResource(R.drawable.ic_update),
+                            contentDescription = null,
+                            tint = accent
+                        )
+                    }
+                    InstallableItem.State.RUNNING -> {
+                        CircularProgressIndicator(
+                            modifier = iconModifier,
+                            strokeWidth = 2.dp,
+                            color = accent
+                        )
+                    }
+                    InstallableItem.State.FINISHED -> {
+                        Icon(
+                            modifier = iconModifier,
+                            painter = painterResource(R.drawable.ic_check),
+                            contentDescription = null,
+                            tint = accent
+                        )
+                    }
+                    InstallableItem.State.FAILED -> {
+                        Icon(
+                            modifier = iconModifier,
+                            painter = painterResource(R.drawable.ic_warning_filled),
+                            contentDescription = null,
+                            tint = accent
+                        )
+                    }
+                    else -> {}
                 }
             }
 
-            val iconModifier = Modifier
-                .align(Alignment.CenterVertically)
-                .padding(PaddingValues(horizontal = 12.dp, vertical = 8.dp))
-                .size(18.dp)
-            when (state) {
-                InstallableItem.State.NOT_STARTED -> {
-                    Icon(
-                        modifier = iconModifier,
-                        painter = painterResource(R.drawable.ic_folder_zip_outlined),
-                        contentDescription = null,
-                        tint = accent
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = item.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VertexTitle
+            )
+            item.summary?.let {
+                Text(
+                    text = it,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    color = VertexTextDim
+                )
+            }
+            if (state == InstallableItem.State.RUNNING || state == InstallableItem.State.FAILED) {
+                message?.let { taskMessage ->
+                    Text(
+                        text = taskMessage,
+                        fontSize = 11.sp,
+                        color = accent,
+                        maxLines = 1
                     )
                 }
-                InstallableItem.State.PENDING -> {
-                    Icon(
-                        modifier = iconModifier,
-                        painter = painterResource(R.drawable.ic_update),
-                        contentDescription = null,
-                        tint = accent
-                    )
-                }
-                InstallableItem.State.RUNNING -> {
-                    CircularProgressIndicator(
-                        modifier = iconModifier,
-                        strokeWidth = 2.dp,
-                        color = accent
-                    )
-                }
-                InstallableItem.State.FINISHED -> {
-                    Icon(
-                        modifier = iconModifier,
-                        painter = painterResource(R.drawable.ic_check),
-                        contentDescription = null,
-                        tint = accent
-                    )
-                }
-                InstallableItem.State.FAILED -> {
-                    Icon(
-                        modifier = iconModifier,
-                        painter = painterResource(R.drawable.ic_warning_filled),
-                        contentDescription = null,
-                        tint = accent
-                    )
-                }
-                else -> {}
             }
         }
     }
@@ -385,9 +429,9 @@ private fun VertexUnpackTheme(content: @Composable () -> Unit) {
             onSecondary = Color(0xFFFFFFFF),
             tertiary = Color(0xFF6D3BE0),
             onTertiary = Color(0xFFFFFFFF),
-            background = Color(0xFF1B1626),
+            background = Color(0xFF0B0814),
             onBackground = Color(0xFFEFE9FA),
-            surface = Color(0xFF211B2E),
+            surface = Color(0xFF14101E),
             onSurface = Color(0xFFEFE9FA),
             surfaceVariant = Color(0xFF2C2440),
             onSurfaceVariant = Color(0xFFD3C8EA),
@@ -409,8 +453,33 @@ private class SkyStreak(
     val angle: Float
 )
 
+/** Pita diagonal ungu (dekorasi) yang bergradien memudar */
+private fun DrawScope.drawBand(
+    x0: Float,
+    y0: Float,
+    length: Float,
+    thickness: Float,
+    colors: List<Color>
+) {
+    val path = Path().apply {
+        moveTo(x0, y0)
+        lineTo(x0 + thickness, y0)
+        lineTo(x0 + thickness + length, y0 + length)
+        lineTo(x0 + length, y0 + length)
+        close()
+    }
+    drawPath(
+        path = path,
+        brush = Brush.linearGradient(
+            colors = colors,
+            start = Offset(x0, y0),
+            end = Offset(x0 + length, y0 + length)
+        )
+    )
+}
+
 /**
- * Latar abu-abu kehitaman (tidak terlalu gelap) dengan bintang berkelip
+ * Latar hampir hitam dengan pita diagonal ungu, bintang berkelip,
  * dan bintang jatuh yang melintas secara berkala.
  */
 @Composable
@@ -453,12 +522,20 @@ private fun Modifier.vertexSkyBackground(): Modifier {
     return this
         .background(
             Brush.verticalGradient(
-                colors = listOf(Color(0xFF241E32), Color(0xFF17131F))
+                colors = listOf(Color(0xFF0C0916), Color(0xFF06040B))
             )
         )
         .drawBehind {
             val t = time.value
+            val w = this.size.width
+            val h = this.size.height
             val twoPi = 2f * PI.toFloat()
+
+            // Pita diagonal dekoratif (kiri bawah dan kanan atas)
+            drawBand(-0.03f * w, 0.50f * h, 0.85f * h, 0.11f * w, listOf(Color(0x883B1B8F), Color(0x00000000)))
+            drawBand(0.05f * w, 0.46f * h, 0.55f * h, 0.022f * w, listOf(Color(0x553B1B8F), Color(0x00000000)))
+            drawBand(0.72f * w, -0.10f * h, 0.90f * h, 0.10f * w, listOf(Color(0x663B1B8F), Color(0x223B1B8F)))
+            drawBand(0.66f * w, -0.10f * h, 0.40f * h, 0.02f * w, listOf(Color(0x44552AB0), Color(0x00000000)))
 
             // Bintang kecil yang berkelip
             twinkles.forEach { star ->
@@ -466,7 +543,7 @@ private fun Modifier.vertexSkyBackground(): Modifier {
                 drawCircle(
                     color = Color(0xFFD9C8FF).copy(alpha = 0.12f + 0.5f * wave),
                     radius = star.size.dp.toPx() * 0.6f,
-                    center = Offset(this.size.width * star.x, this.size.height * star.y)
+                    center = Offset(w * star.x, h * star.y)
                 )
             }
 
@@ -479,12 +556,12 @@ private fun Modifier.vertexSkyBackground(): Modifier {
                     val rad = star.angle * PI.toFloat() / 180f
                     val dirX = -cos(rad)
                     val dirY = sin(rad)
-                    val travel = this.size.width * 0.55f
+                    val travel = w * 0.55f
                     val head = Offset(
-                        x = this.size.width * star.startX + dirX * travel * q,
-                        y = this.size.height * star.startY + dirY * travel * q
+                        x = w * star.startX + dirX * travel * q,
+                        y = h * star.startY + dirY * travel * q
                     )
-                    val tailLength = this.size.width * star.length
+                    val tailLength = w * star.length
                     val tail = Offset(head.x - dirX * tailLength, head.y - dirY * tailLength)
                     val fade = sin(q * PI.toFloat())
 
