@@ -18,6 +18,21 @@
 
 package com.movtery.zalithlauncher.ui.screens.content
 
+import com.movtery.zalithlauncher.ui.theme.VtxGradientButton
+import com.movtery.zalithlauncher.ui.theme.VtxHeading
+import com.movtery.zalithlauncher.ui.theme.Vtx
+import com.movtery.zalithlauncher.ui.theme.VtxDiamond
+import com.movtery.zalithlauncher.ui.theme.vtxCardBorder
+import com.movtery.zalithlauncher.ui.theme.vtxCardColors
+import com.movtery.zalithlauncher.ui.theme.vtxDashedBorder
+import androidx.constraintlayout.compose.Dimension
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -190,6 +205,12 @@ fun LauncherScreen(
                 }
             }
 
+            // Tulisan sambutan: hanya tampil saat belum ada akun atau belum ada versi terpasang
+            val currentAccount by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
+            val installedVersions by VersionsManager.versions.collectAsStateWithLifecycle()
+            val versionsRefreshing by VersionsManager.isRefreshing.collectAsStateWithLifecycle()
+            val showIntro = currentAccount == null || (installedVersions.isEmpty() && !versionsRefreshing)
+
             // 内容区域
             Row(modifier = Modifier.fillMaxSize()) {
                 // ActionMenu 对接到了 Start，留出空位
@@ -204,21 +225,35 @@ fun LauncherScreen(
                         }
                     }
                 ) {
-                ContentMenu(
+                Box(
                     modifier = Modifier
                         .guideNode(
                             key = GuideKeys.Main.Step.CardTip,
                             holeRadius = 0.dp
                         )
                         .weight(ContentWeight)
-                        .offset { IntOffset(x = dragState.previewShift.value.roundToInt(), y = 0) },
-                    isVisible = isVisible,
-                    onLaunchGame = { version ->
-                        onLaunchGame(version)
-                    },
-                    onQuickPlayServer = onQuickPlayServer,
-                    onOpenVersionSettings = navigateToVersions
-                )
+                        .offset { IntOffset(x = dragState.previewShift.value.roundToInt(), y = 0) }
+                ) {
+                    ContentMenu(
+                        modifier = Modifier.fillMaxSize(),
+                        isVisible = isVisible,
+                        onLaunchGame = { version ->
+                            onLaunchGame(version)
+                        },
+                        onQuickPlayServer = onQuickPlayServer,
+                        onOpenVersionSettings = navigateToVersions
+                    )
+                    AnimatedVisibility(
+                        visible = showIntro && isVisible,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 20.dp, top = 16.dp),
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        VtxHeading()
+                    }
+                }
                 }
 
                 // ActionMenu 对接到了 End，留出空位
@@ -295,12 +330,15 @@ private fun AccountAvatarCenter(
 ) {
     Box(
         modifier = modifier
-            .clip(shape = MaterialTheme.shapes.extraLarge)
-            .clickable(onClick = onClick)
+            .clip(shape = RectangleShape)
+            .vtxDashedBorder(color = Color(0x558B5CF6))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier.padding(all = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (account != null) {
                 PlayerFace(
@@ -309,11 +347,23 @@ private fun AccountAvatarCenter(
                     refreshKey = refreshKey
                 )
             } else {
-                Icon(
-                    modifier = Modifier.size(40.dp),
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = null
-                )
+                Box(
+                    modifier = Modifier.size(64.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .rotate(45f)
+                            .border(1.dp, Vtx.Violet)
+                    )
+                    Icon(
+                        modifier = Modifier.size(22.dp),
+                        painter = painterResource(R.drawable.ic_add),
+                        contentDescription = null,
+                        tint = Vtx.Violet
+                    )
+                }
             }
 
             Column(
@@ -482,17 +532,14 @@ private fun VersionsContent(
             }
         }
 
-        ScalingActionButton(
+        VtxGradientButton(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(PaddingValues(horizontal = 12.dp))
                 .padding(bottom = 8.dp),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
+            text = stringResource(R.string.main_launch_game),
             onClick = {
                 onLaunchGame(null)
-            },
-            content = {
-                MarqueeText(text = stringResource(R.string.main_launch_game))
             }
         )
     }
@@ -512,7 +559,9 @@ private fun ActionMenuCardContent(
             .actionMenuDragAnchor()
             .guideNode(GuideKeys.Main.Step.CardDrag)
             .then(modifier),
-        shape = MaterialTheme.shapes.extraLarge
+        shape = Vtx.CardShape,
+        colors = vtxCardColors(),
+        border = vtxCardBorder()
     ) {
         ConstraintLayout(
             modifier = Modifier.fillMaxSize()
@@ -526,7 +575,10 @@ private fun ActionMenuCardContent(
                         bottom.linkTo(versionManagerLayout.top)
                         start.linkTo(parent.start)
                         end.linkTo(parent.end)
-                    }.guideNode(
+                        width = Dimension.fillToConstraints
+                        height = Dimension.fillToConstraints
+                    }.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
+                    .guideNode(
                         key = GuideKeys.Main.Step.Account,
                         preferSide = GuideSide.Below
                     ),
@@ -613,7 +665,9 @@ private fun ActionMenuTallerContent(
                     holeRadius = 28.dp
                 )
                 .fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = Vtx.CardShape,
+            colors = vtxCardColors(),
+            border = vtxCardBorder(),
             onClick = toAccountManageScreen
         ) {
             AccountAvatarRow(
@@ -624,7 +678,9 @@ private fun ActionMenuTallerContent(
 
         BackgroundCard(
             modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = Vtx.CardShape,
+            colors = vtxCardColors(),
+            border = vtxCardBorder()
         ) {
             VersionsContent(
                 modifier = Modifier.fillMaxWidth(),
@@ -693,7 +749,8 @@ private fun VersionManagerLayout(
     Row(
         modifier = modifier
             .actionMenuDragExclusion()
-            .clip(shape = MaterialTheme.shapes.large)
+            .clip(shape = RectangleShape)
+            .border(1.dp, Color(0x338B5CF6))
             .combinedClickable(
                 role = Role.Button,
                 onClick = swapToVersionManage,
@@ -714,12 +771,23 @@ private fun VersionManagerLayout(
                 )
             }
         } else {
-            VersionIconImage(
-                version = version,
-                modifier = Modifier
-                    .size(28.dp)
-                    .align(Alignment.CenterVertically)
-            )
+            if (version == null) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .align(Alignment.CenterVertically),
+                    contentAlignment = Alignment.Center
+                ) {
+                    VtxDiamond(size = 8.dp, color = Vtx.Violet.copy(alpha = 0.6f))
+                }
+            } else {
+                VersionIconImage(
+                    version = version,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .align(Alignment.CenterVertically)
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
 
             if (version == null) {
