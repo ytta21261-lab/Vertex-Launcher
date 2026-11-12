@@ -229,6 +229,7 @@ class Version(
     fun getGameArgs(): String = versionConfig.gameArgs
 
     fun getCustomInfo(): String = versionConfig.customInfo.getValueOrDefault(AllSettings.versionCustomInfo.getValue())
+        .replace("[vl_version]", BuildConfig.VERSION_NAME)
         .replace("[zl_version]", BuildConfig.VERSION_NAME)
 
     fun getServerIp(): String? = versionConfig.serverIp.takeIf { it.isNotEmptyOrBlank() }
