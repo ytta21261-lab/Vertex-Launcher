@@ -140,6 +140,20 @@ object AllSettings : SettingsRegistry() {
     val versionCustomInfo = stringSetting("versionCustomInfo", "VertexLauncher[vl_version]")
 
     /**
+     * Widget layar utama (semuanya mati secara bawaan, nyalakan lewat Pengaturan)
+     */
+    val widgetClock = boolSetting("widgetClock", false)
+    val widgetSystem = boolSetting("widgetSystem", false)
+    val widgetNotes = boolSetting("widgetNotes", false)
+    val widgetMusic = boolSetting("widgetMusic", false)
+
+    /** Isi widget catatan singkat */
+    val widgetNotesText = stringSetting("widgetNotesText", "")
+
+    /** Client ID Jamendo untuk pencarian musik online */
+    val widgetJamendoClientId = stringSetting("widgetJamendoClientId", "")
+
+    /**
      * 启动器的Java环境
      */
     val javaRuntime = stringSetting("javaRuntime", "")
