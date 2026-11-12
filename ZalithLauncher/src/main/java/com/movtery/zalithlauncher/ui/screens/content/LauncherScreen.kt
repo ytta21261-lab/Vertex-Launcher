@@ -42,7 +42,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -133,6 +135,10 @@ import kotlin.math.roundToInt
 private const val ContentWeight = 7f
 private const val ActionMenuWeight = 3f
 
+/** Lebar wilayah kiri (tulisan sambutan + kartu aksi) dan kanan (kartu beranda) */
+private const val LeftWeight = 6.2f
+private const val RightWeight = 3.8f
+
 /**
  * 操作菜单停泊槽位与屏幕边缘的间距
  */
@@ -216,38 +222,13 @@ fun LauncherScreen(
                 label = "VtxIntroAlpha"
             )
 
-            // 内容区域
+            // Tata letak: kiri = tulisan sambutan + kartu aksi lebar di bawah, kanan = kartu beranda
             Row(modifier = Modifier.fillMaxSize()) {
-                // ActionMenu 对接到了 Start，留出空位
-                if (dockedSide == ActionMenuSide.START) {
-                    Spacer(modifier = Modifier.weight(ActionMenuWeight))
-                }
-
-                CompositionLocalProvider(
-                    LocalUriHandler provides object : UriHandler {
-                        override fun openUri(uri: String) {
-                            onOpenLink(uri)
-                        }
-                    }
-                ) {
                 Box(
                     modifier = Modifier
-                        .guideNode(
-                            key = GuideKeys.Main.Step.CardTip,
-                            holeRadius = 0.dp
-                        )
-                        .weight(ContentWeight)
-                        .offset { IntOffset(x = dragState.previewShift.value.roundToInt(), y = 0) }
+                        .weight(LeftWeight)
+                        .fillMaxHeight()
                 ) {
-                    ContentMenu(
-                        modifier = Modifier.fillMaxSize(),
-                        isVisible = isVisible,
-                        onLaunchGame = { version ->
-                            onLaunchGame(version)
-                        },
-                        onQuickPlayServer = onQuickPlayServer,
-                        onOpenVersionSettings = navigateToVersions
-                    )
                     // Tidak memakai AnimatedVisibility: di dalam Row akan bentrok dengan RowScope
                     if (introAlpha > 0.01f) {
                         VtxHeading(
@@ -257,44 +238,101 @@ fun LauncherScreen(
                                 .alpha(introAlpha)
                         )
                     }
-                }
-                }
 
-                // ActionMenu 对接到了 End，留出空位
-                if (dockedSide == ActionMenuSide.END) {
-                    Spacer(modifier = Modifier.weight(ActionMenuWeight))
-                }
-            }
-
-            val isActionMenuTaller = screenType == ScreenType.Tablet
-            CompositionLocalProvider(LocalActionMenuDrag provides dragState) {
-                Box(
-                    modifier = Modifier
-                        .offset {
-                            val translation = if (dragState.floating) {
-                                dragState.cardPosition
-                            } else {
-                                dragState.landingOf(effectiveSide) + dragState.settleOffset.value
-                            }
-                            val x = if (isRtl) parentWidthPx - cardWidth.toPx() - translation.x else translation.x
-                            IntOffset(x.roundToInt(), translation.y.roundToInt())
-                        }
-                        .size(cardWidth, cardHeight)
-                ) {
-                    ActionMenu(
-                        modifier = Modifier.fillMaxSize(),
+                    ActionMenuWide(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 20.dp, bottom = 20.dp)
+                            .fillMaxWidth(0.84f)
+                            .heightIn(min = 150.dp)
+                            .fillMaxHeight(0.46f),
                         isVisible = isVisible,
-                        isTaller = isActionMenuTaller,
-                        dockedSide = dockedSide,
                         onLaunchGame = onLaunchGame,
-                        swapDirection = if (dockedSide == ActionMenuSide.END) AnimatedDirection.Right else AnimatedDirection.Left,
-                        pickUpScale = { dragState.scale },
                         toAccountManageScreen = toAccountManageScreen,
                         toVersionManageScreen = toVersionManageScreen,
                         toVersionSettingsScreen = toVersionSettingsScreen
                     )
                 }
+
+                CompositionLocalProvider(
+                    LocalUriHandler provides object : UriHandler {
+                        override fun openUri(uri: String) {
+                            onOpenLink(uri)
+                        }
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .guideNode(
+                                key = GuideKeys.Main.Step.CardTip,
+                                holeRadius = 0.dp
+                            )
+                            .weight(RightWeight)
+                            .fillMaxHeight()
+                    ) {
+                        ContentMenu(
+                            modifier = Modifier.fillMaxSize(),
+                            isVisible = isVisible,
+                            onLaunchGame = { version ->
+                                onLaunchGame(version)
+                            },
+                            onQuickPlayServer = onQuickPlayServer,
+                            onOpenVersionSettings = navigateToVersions
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActionMenuWide(
+    isVisible: Boolean,
+    onLaunchGame: (Version?) -> Unit,
+    modifier: Modifier = Modifier,
+    toAccountManageScreen: () -> Unit = {},
+    toVersionManageScreen: () -> Unit = {},
+    toVersionSettingsScreen: () -> Unit = {}
+) {
+    val ctx = rememberAnimatedContext(isVisible = isVisible)
+    val account by AccountsManager.currentAccountFlow.collectAsStateWithLifecycle()
+
+    // Kartu lebar: panel akun di kiri, pilihan versi dan tombol luncurkan di kanan
+    BackgroundCard(
+        modifier = modifier
+            .animated(ctx, from = AnimatedDirection.Left)
+            .guideNode(GuideKeys.Main.Step.CardDrag),
+        shape = Vtx.CardShape,
+        colors = vtxCardColors(),
+        border = vtxCardBorder()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AccountAvatarCenter(
+                modifier = Modifier
+                    .weight(0.42f)
+                    .fillMaxHeight()
+                    .guideNode(
+                        key = GuideKeys.Main.Step.Account,
+                        preferSide = GuideSide.Above
+                    ),
+                account = account,
+                onClick = toAccountManageScreen
+            )
+
+            VersionsContent(
+                modifier = Modifier
+                    .weight(0.58f)
+                    .fillMaxHeight(),
+                onLaunchGame = onLaunchGame,
+                toVersionManageScreen = toVersionManageScreen,
+                toVersionSettingsScreen = toVersionSettingsScreen,
+            )
         }
     }
 }
@@ -446,7 +484,10 @@ private fun VersionsContent(
 
     var showList by remember { mutableStateOf(false) }
     var versionManagerRow by remember { mutableStateOf<LayoutCoordinates?>(null) }
-    Column(modifier = modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -455,7 +496,7 @@ private fun VersionsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier
+           modifier = Modifier
                         .weight(1f)
                         .onGloballyPositioned { coordinates ->
                             versionManagerRow = coordinates
@@ -478,7 +519,7 @@ private fun VersionsContent(
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_settings_filled),
-     contentDescription = stringResource(R.string.versions_manage_settings)
+                            contentDescription = stringResource(R.string.versions_manage_settings)
                         )
                     }
                 }
