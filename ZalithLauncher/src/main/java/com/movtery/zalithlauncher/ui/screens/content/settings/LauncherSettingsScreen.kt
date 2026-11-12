@@ -108,6 +108,7 @@ import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.ListSettin
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCard
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SettingsCardColumn
 import com.movtery.zalithlauncher.ui.screens.content.settings.layouts.SwitchSettingsCard
+import com.movtery.zalithlauncher.ui.widgets.VtxWidgetSettings
 import com.movtery.zalithlauncher.ui.systemLocaleStringResource
 import com.movtery.zalithlauncher.ui.theme.ColorThemeType
 import com.movtery.zalithlauncher.ui.theme.cardColor
@@ -378,6 +379,186 @@ fun LauncherSettingsScreen(
                             items = MirrorSourceType.entries,
                             title = stringResource(R.string.settings_launcher_mirror_addon_platform_source_title),
                             getItemText = { stringResource(it.textRes) }
+                    )
+
+                    ListSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        unit = AllSettings.launcherLanguage,
+                        items = AppLanguage.entries,
+                        title = systemLocaleStringResource(R.string.settings_launcher_language),
+                        getItemText = {
+                            if (it == AppLanguage.FOLLOW_SYSTEM) systemLocaleStringResource(it.textRes)
+                            else stringResource(it.textRes)
+                        },
+                        onValueChange = {
+                            applyLanguage(it)
+                        }
+                    )
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Middle,
+                        unit = AllSettings.launcherFestivalEffects,
+                        title = stringResource(R.string.settings_launcher_festivals_effects_title),
+                        summary = stringResource(R.string.settings_launcher_festivals_effects_summary)
+                    )
+
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Bottom,
+                        unit = AllSettings.launcherFullScreen,
+                        title = stringResource(R.string.settings_launcher_full_screen_title),
+                        summary = stringResource(R.string.settings_launcher_full_screen_summary)
+                    )
+                }
+            }
+
+            //启动器背景设置板块
+            LocalBackgroundViewModel.current?.let { backgroundViewModel ->
+                AnimatedItem { ctx ->
+                    SettingsCardColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animated(ctx)
+                    ) {
+                        SettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Top
+                        ) {
+                            CustomBackground(
+                                modifier = Modifier.fillMaxWidth(),
+                                backgroundViewModel = backgroundViewModel,
+                                submitError = submitError
+                            )
+                        }
+
+                        IntSliderSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            unit = AllSettings.launcherBackgroundOpacity,
+                            title = stringResource(R.string.settings_launcher_background_opacity_title),
+                            summary = stringResource(R.string.settings_launcher_background_opacity_summary),
+                            valueRange = AllSettings.launcherBackgroundOpacity.floatRange,
+                            suffix = "%",
+                            enabled = backgroundViewModel.isValid,
+                            fineTuningControl = true
+                        )
+
+                        IntSliderSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            unit = AllSettings.videoBackgroundVolume,
+                            title = stringResource(R.string.settings_launcher_background_video_volume_title),
+                            summary = stringResource(R.string.settings_launcher_background_video_volume_summary),
+                            valueRange = AllSettings.videoBackgroundVolume.floatRange,
+                            suffix = "%",
+                            enabled = backgroundViewModel.isValid && backgroundViewModel.isVideo,
+                            fineTuningControl = true
+                        )
+
+                        IntSliderSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Bottom,
+                            unit = AllSettings.backgroundBlur,
+                            title = stringResource(R.string.settings_title_blur),
+                            summary = stringResource(R.string.settings_launcher_background_blur_summary),
+                            valueRange = AllSettings.backgroundBlur.floatRange,
+                            suffix = "Dp",
+                            enabled = backgroundViewModel.isValid,
+                            fineTuningControl = true,
+                            appendContent = {
+                                val unit = AllSettings.backgroundBlurType
+                                val state = unit.state
+                                IconButton(
+                                    modifier = Modifier
+                                        .padding(start = 12.dp)
+                                        .size(32.dp),
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = DisabledAlpha),
+                                        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = DisabledAlpha),
+                                    ),
+                                    onClick = {
+                                        unit.save(state.switch())
+                                    },
+                                    enabled = backgroundViewModel.isValid,
+                                ) {
+                                    Crossfade(
+                                        targetState = state
+                                    ) { target ->
+                                        val painter = when (target) {
+                                            BackgroundBlur.Background -> painterResource(R.drawable.ic_blur_circular_outlined)
+                                            BackgroundBlur.Foreground -> painterResource(R.drawable.ic_blur_circular_filled)
+                                        }
+                                        Icon(
+                                            painter = painter,
+                                            contentDescription = null
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            //动画设置板块
+            AnimatedItem { ctx ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animated(ctx)
+                ) {
+                    SwitchSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Top,
+                        unit = AllSettings.launcherSwapAnimEnabled,
+                        title = stringResource(R.string.settings_launcher_swap_anim_enabled_title),
+                        summary = stringResource(R.string.settings_launcher_swap_anim_enabled_summary)
+                    )
+
+                    IntSliderSettingsCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        position = CardPosition.Bottom,
+                        unit = AllSettings.launcherAnimateSpeedLevel,
+                        title = stringResource(R.string.settings_launcher_animate_speed_title),
+                        summary = stringResource(R.string.settings_launcher_animate_speed_summary),
+                        valueRange = AllSettings.launcherAnimateSpeedLevel.floatRange,
+                        valueText = { value -> "×" + (value / 10f) },
+                        enabled = AllSettings.launcherSwapAnimEnabled.state,
+                    )
+                }
+            }
+
+            AnimatedItem { ctx ->
+                SettingsCardColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animated(ctx)
+                ) {
+                    //这些镜像源都是为了改善中国大陆内陆的网络环境而存在的
+                    //境外不需要这些镜像源，反而可能拖慢境外的下载速度
+                    //所以不应该向中国境外开放这些选项
+                    val isChinaMainland = remember { isChinaMainland() }
+                    if (isChinaMainland) {
+                        ListSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Top,
+                            unit = AllSettings.gameDownloadSource,
+                            items = MirrorSourceType.entries,
+                            title = stringResource(R.string.settings_launcher_mirror_game_source_title),
+                            getItemText = { stringResource(it.textRes) }
+                        )
+
+                        ListSettingsCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            position = CardPosition.Middle,
+                            unit = AllSettings.addonPlatformSource,
+                            items = MirrorSourceType.entries,
+                            title = stringResource(R.string.settings_launcher_mirror_addon_platform_source_title),
+                            getItemText = { stringResource(it.textRes) }
                         )
                     }
 
@@ -425,6 +606,14 @@ fun LauncherSettingsScreen(
                         }
                     )
                 }
+            }
+            // Pengaturan widget layar utama
+            AnimatedItem { ctx ->
+                VtxWidgetSettings(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animated(ctx)
+                )
             }
         }
     }
@@ -813,3 +1002,4 @@ private fun BackgroundOperation(
         }
     }
 }
+        
