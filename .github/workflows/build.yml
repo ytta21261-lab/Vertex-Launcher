@@ -48,6 +48,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Menimpa file proyek dengan isi semua ZIP di folder patches/ (urut nama).
+      # Cukup unggah satu ZIP per putaran, tidak perlu mengunggah file satu per satu.
+      - name: Apply patch zips
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for z in $(ls patches/*.zip 2>/dev/null | sort); do
+            echo "Applying $z"
+            unzip -o -q "$z" -d .
+          done
+
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
