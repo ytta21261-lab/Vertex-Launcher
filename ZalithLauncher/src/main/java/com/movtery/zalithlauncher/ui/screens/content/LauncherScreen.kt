@@ -20,6 +20,7 @@ package com.movtery.zalithlauncher.ui.screens.content
 
 import com.movtery.zalithlauncher.ui.theme.VtxGradientButton
 import com.movtery.zalithlauncher.ui.theme.VtxHeading
+import com.movtery.zalithlauncher.ui.widgets.VtxWidgetsPanel
 import com.movtery.zalithlauncher.ui.theme.Vtx
 import com.movtery.zalithlauncher.ui.theme.VtxDiamond
 import com.movtery.zalithlauncher.ui.theme.vtxCardBorder
@@ -270,15 +271,26 @@ fun LauncherScreen(
                             .weight(RightWeight)
                             .fillMaxHeight()
                     ) {
-                        ContentMenu(
-                            modifier = Modifier.fillMaxSize(),
-                            isVisible = isVisible,
-                            onLaunchGame = { version ->
-                                onLaunchGame(version)
-                            },
-                            onQuickPlayServer = onQuickPlayServer,
-                            onOpenVersionSettings = navigateToVersions
-                        )
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // Widget (jam, RAM, catatan, musik) bila dinyalakan di Pengaturan
+                            VtxWidgetsPanel(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(0.62f, fill = false)
+                                    .padding(start = 8.dp, end = 20.dp, top = 12.dp, bottom = 8.dp)
+                            )
+                            ContentMenu(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(0.38f),
+                                isVisible = isVisible,
+                                onLaunchGame = { version ->
+                                    onLaunchGame(version)
+                                },
+                                onQuickPlayServer = onQuickPlayServer,
+                                onOpenVersionSettings = navigateToVersions
+                            )
+                        }
                     }
                 }
             }
@@ -496,7 +508,7 @@ private fun VersionsContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-           modifier = Modifier
+                    modifier = Modifier
                         .weight(1f)
                         .onGloballyPositioned { coordinates ->
                             versionManagerRow = coordinates
