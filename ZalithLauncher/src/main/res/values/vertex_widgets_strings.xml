@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vx_widget_clock_title">Clock and date widget</string>
+    <string name="vx_widget_clock_summary">Shows the time and date on the home screen</string>
+    <string name="vx_widget_system_title">Memory and storage widget</string>
+    <string name="vx_widget_system_summary">Shows RAM and storage usage on the home screen</string>
+    <string name="vx_widget_notes_title">Quick notes widget</string>
+    <string name="vx_widget_notes_summary">A small notepad on the home screen</string>
+    <string name="vx_widget_music_title">Music player widget</string>
+    <string name="vx_widget_music_summary">Play songs from your phone or from Jamendo</string>
+    <string name="vx_widget_jamendo_title">Jamendo client ID</string>
+    <string name="vx_widget_jamendo_summary">Free key from developer.jamendo.com, needed to search online music</string>
+    <string name="vx_widget_jamendo_label">Client ID</string>
+
+    <string name="vx_system_ram">RAM</string>
+    <string name="vx_system_storage">Storage</string>
+    <string name="vx_notes_hint">Write a quick note…</string>
+
+    <string name="vx_music_tab_local">My phone</string>
+    <string name="vx_music_tab_online">Online</string>
+    <string name="vx_music_search_hint">Search songs</string>
+    <string name="vx_music_grant">Allow access to music</string>
+    <string name="vx_music_no_key">Enter a Jamendo client ID in Settings first</string>
+    <string name="vx_music_empty">No songs found</string>
+    <string name="vx_music_loading">Loading…</string>
+    <string name="vx_music_error">Could not load songs</string>
+    <string name="vx_music_nothing">Nothing playing</string>
+</resources>
