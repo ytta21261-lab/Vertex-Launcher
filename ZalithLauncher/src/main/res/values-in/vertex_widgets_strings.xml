@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vx_widget_clock_title">Widget jam dan tanggal</string>
+    <string name="vx_widget_clock_summary">Menampilkan waktu dan tanggal di layar utama</string>
+    <string name="vx_widget_system_title">Widget memori dan penyimpanan</string>
+    <string name="vx_widget_system_summary">Menampilkan pemakaian RAM dan penyimpanan di layar utama</string>
+    <string name="vx_widget_notes_title">Widget catatan singkat</string>
+    <string name="vx_widget_notes_summary">Buku catatan kecil di layar utama</string>
+    <string name="vx_widget_music_title">Widget pemutar musik</string>
+    <string name="vx_widget_music_summary">Putar lagu dari ponsel atau dari Jamendo</string>
+    <string name="vx_widget_jamendo_title">Client ID Jamendo</string>
+    <string name="vx_widget_jamendo_summary">Kunci gratis dari developer.jamendo.com, dibutuhkan untuk mencari musik online</string>
+    <string name="vx_widget_jamendo_label">Client ID</string>
+
+    <string name="vx_system_ram">RAM</string>
+    <string name="vx_system_storage">Penyimpanan</string>
+    <string name="vx_notes_hint">Tulis catatan singkat…</string>
+
+    <string name="vx_music_tab_local">Ponsel</string>
+    <string name="vx_music_tab_online">Online</string>
+    <string name="vx_music_search_hint">Cari lagu</string>
+    <string name="vx_music_grant">Izinkan akses ke musik</string>
+    <string name="vx_music_no_key">Isi client ID Jamendo di Pengaturan dulu</string>
+    <string name="vx_music_empty">Lagu tidak ditemukan</string>
+    <string name="vx_music_loading">Memuat…</string>
+    <string name="vx_music_error">Gagal memuat lagu</string>
+    <string name="vx_music_nothing">Tidak ada lagu yang diputar</string>
+</resources>
